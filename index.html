@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #101322;
+  color: white;
+  text-align: center;
+  margin: 0;
+  padding: 25px 10px;
+}
+
+h1 {
+  color: #65e6ff;
+  font-size: 36px;
+}
+
+#status {
+  font-size: 20px;
+  min-height: 28px;
+  margin: 20px 0;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 95px);
+  gap: 10px;
+  justify-content: center;
+  margin: 20px auto;
+}
+
+.cell {
+  width: 95px;
+  height: 95px;
+  font-size: 42px;
+  font-weight: bold;
+  border: none;
+  border-radius: 15px;
+  background: #252b45;
+  color: white;
+  cursor: pointer;
+}
+
+.cell:hover:enabled {
+  background: #343d60;
+}
+
+button.action {
+  background: #65e6ff;
+  color: #101322;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 22px;
+  margin: 8px;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#score {
+  font-size: 18px;
+  margin: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>TIC TAC TOE</h1>
+<p>Play against the smart robot!</p>
+
+<div id="score">
+  You: <span id="playerScore">0</span>
+  &nbsp; | &nbsp;
+  Robot: <span id="robotScore">0</span>
+  &nbsp; | &nbsp;
+  Draws: <span id="drawScore">0</span>
+</div>
+
+<div id="status">Your turn! You are X.</div>
+
+<div class="board" id="board">
+  <button class="cell" data-index="0"></button>
+  <button class="cell" data-index="1"></button>
+  <button class="cell" data-index="2"></button>
+  <button class="cell" data-index="3"></button>
+  <button class="cell" data-index="4"></button>
+  <button class="cell" data-index="5"></button>
+  <button class="cell" data-index="6"></button>
+  <button class="cell" data-index="7"></button>
+  <button class="cell" data-index="8"></button>
+</div>
+
+<button class="action" id="restart">Play Again</button>
+
+<script>
+const cells = [...document.querySelectorAll(".cell")];
+const statusText = document.getElementById("status");
+
+let board = Array(9).fill("");
+let gameOver = false;
+let playerScore = 0;
+let robotScore = 0;
+let drawScore = 0;
+
+const wins = [
+  [0,1,2], [3,4,5], [6,7,8],
+  [0,3,6], [1,4,7], [2,5,8],
+  [0,4,8], [2,4,6]
+];
+
+function winner(b) {
+  for (const line of wins) {
+    const [a, c, d] = line;
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+      return b[a];
+    }
+  }
+  return b.every(Boolean) ? "draw" : null;
+}
+
+function render() {
+  cells.forEach((cell, i) => {
+    cell.textContent = board[i];
+    cell.disabled = gameOver || Boolean(board[i]);
+    cell.style.color =
+      board[i] === "X" ? "#65e6ff" : "#ff9bca";
+  });
+}
+
+function finishGame(result) {
+  gameOver = true;
+
+  if (result === "X") {
+    playerScore++;
+    statusText.textContent = "You win!";
+  } else if (result === "O") {
+    robotScore++;
+    statusText.textContent = "The robot wins!";
+  } else {
+    drawScore++;
+    statusText.textContent = "It's a draw!";
+  }
+
+  updateScore();
+  render();
+
+  // Clear the board and start a fresh round automatically.
+  setTimeout(() => {
+    board = Array(9).fill("");
+    gameOver = false;
+    statusText.textContent = "New round! Your turn — you are X.";
+    render();
+  }, 1800);
+}
+
+function updateScore() {
+  document.getElementById("playerScore").textContent = playerScore;
+  document.getElementById("robotScore").textContent = robotScore;
+  document.getElementById("drawScore").textContent = drawScore;
+}
+
+function minimax(b, isRobot) {
+  const result = winner(b);
+
+  if (result === "O") return { score: 10 };
+  if (result === "X") return { score: -10 };
+  if (result === "draw") return { score: 0 };
+
+  let best = {
+    score: isRobot ? -Infinity : Infinity,
+    index: -1
+  };
+
+  for (let i = 0; i < 9; i++) {
+    if (b[i] !== "") continue;
+
+    b[i] = isRobot ? "O" : "X";
+    const move = minimax(b, !isRobot);
+    b[i] = "";
+
+    if (
+      (isRobot && move.score > best.score) ||
+      (!isRobot && move.score < best.score)
+    ) {
+      best = { score: move.score, index: i };
+    }
+  }
+
+  return best;
+}
+
+function robotMove() {
+  if (gameOver) return;
+
+  const move = minimax([...board], true);
+
+  if (move.index !== -1) {
+    board[move.index] = "O";
+  }
+
+  const result = winner(board);
+
+  if (result) {
+    render();
+    finishGame(result);
+  } else {
+    statusText.textContent = "Your turn! You are X.";
+    render();
+  }
+}
+
+function playerMove(index) {
+  if (gameOver || board[index]) return;
+
+  board[index] = "X";
+  render();
+
+  const result = winner(board);
+
+  if (result) {
+    finishGame(result);
+    return;
+  }
+
+  statusText.textContent = "Robot is thinking...";
+  render();
+
+  setTimeout(robotMove, 350);
+}
+
+cells.forEach((cell, i) => {
+  cell.addEventListener("click", () => playerMove(i));
+});
+
+document.getElementById("restart").addEventListener("click", () => {
+  board = Array(9).fill("");
+  gameOver = false;
+  statusText.textContent = "Your turn! You are X.";
+  render();
+});
+
+render();
+</script>
+
+</body>
+</html>
